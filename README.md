@@ -46,6 +46,8 @@ only when staging is genuinely behind.
 
 ## Installation
 
+Requires Python 3.11+.
+
 From GitHub, straight into the current environment:
 
 ```sh
