@@ -1,0 +1,19 @@
+# Version validator for GitLab CI.
+# Copy this job into the .gitlab-ci.yml of a repository that uses
+# auto-version-hook (install it from your hosted copy of this project).
+
+version-check:
+  stage: test
+  image: python:3.12-slim
+  variables:
+    GIT_DEPTH: "1"        # the hook fetches the target branches itself
+  rules:
+    # merge requests: validate the source branch version
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    # pushes to protected branches: staging must not be behind main (catch-up)
+    - if: $CI_COMMIT_BRANCH =~ /^(master|main|dev|development|staging)$/
+  script:
+    - pip install --quiet git+https://gitlab.com/<group>/auto-git.git
+    - >
+      auto-version-hook --check
+      --branch "${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME:-$CI_COMMIT_BRANCH}"

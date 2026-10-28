@@ -1,0 +1,63 @@
+# Example configuration for auto-version-hook (v2, branch_flow).
+# Every section and option is optional; the values below are the defaults.
+# Full spec: docs/branch-flow-design.md
+
+version:
+  file: env.yml        # version file path, relative to the repository root
+  key: version         # yq-style path to the version inside the file:
+                       #   version | app.build.version | items[0].version | labels."app.version"
+  # Regex that decomposes the version string into named groups (the whole
+  # string must match). Bumpable parts are the groups used as `bump` values;
+  # everything outside the bumped group is preserved verbatim on bump.
+  parse_regex: '^v(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)$'
+
+git:
+  remote: origin
+  fetch: true          # ls-remote + fetch the target branches on every run
+
+# The branch lifecycle graph. List order = matching priority (first match
+# wins). `target` is a class name: where this kind of branch is promoted to;
+# it is also where the base version comes from. Target resolution prefers a
+# remote branch named exactly like the class (origin/<name>), then falls back
+# to the class regex (which must match exactly one branch).
+branch_flow:
+  - name: main         # release branch, the top of the graph
+    regex: '^(master|main)$'
+    protected: true    # a direct commit never bumps the version
+    policy: keep
+
+  - name: staging      # integration branch (GitFlow); absent in trunk-based
+    regex: '^(dev(elop(ment)?)?|stag(ing)?)$'
+    protected: true
+    target: main
+    policy: keep       # no bump; if staging is behind main (a hotfix landed),
+                       # its version quietly catches up on the next commit
+
+  - name: patch        # hotfix: straight to main, bypassing staging
+    regex: '^patch'
+    target: main
+    policy: increment  # take main's version and increment...
+    bump: patch        # ...the `patch` group of version.parse_regex
+    reset_lower_parts: false  # true: numeric groups to the right are zeroed
+
+  - name: feature
+    regex: '^feat(ure)?'
+    target: staging    # bases on staging's live version; if staging does not
+                       # exist yet, the chain is walked up to main
+    policy: increment
+    bump: minor
+    reset_lower_parts: false
+
+  - name: tech         # version is forced to the target's, never bumped
+    regex: '^devops/tech.+'
+    target: staging
+    policy: ignore
+
+# Validation happens on every run: names are unique, targets exist, the graph
+# has no cycles, bump groups exist in parse_regex. `auto-version-hook --graph`
+# prints this graph as Mermaid so you can eyeball it.
+
+hooks:
+  auto_stage: true     # `git add` the version file after changing it
+  on_error: fail       # "fail": block the commit, "warn": let it through
+  skip_merges: true    # do not act on merge commits (MERGE_HEAD present)

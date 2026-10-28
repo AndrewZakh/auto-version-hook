@@ -1,0 +1,23 @@
+# Version validator for GitHub Actions.
+# Copy this workflow into .github/workflows/ of a repository that uses
+# auto-version-hook (install it from your hosted copy of this project).
+
+name: version-check
+
+on:
+  pull_request:
+  push:
+    branches: [main, master, dev, development, staging]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1   # the hook fetches the target branches itself
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet git+https://github.com/<org>/auto-git.git
+      - run: auto-version-hook --check --branch "${{ github.head_ref || github.ref_name }}"
