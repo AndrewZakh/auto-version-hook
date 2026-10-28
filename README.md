@@ -1,5 +1,7 @@
 # auto-version-hook
 
+![OWL-THAT-WATCHES](./assets/logo-dark.svg)
+
 A Git pre-commit hook written in Python: on every commit it determines the branch class
 from the branch name, takes the base version from the branch this work is being promoted
 to (`target`), and updates the version in a YAML file (`env.yml` by default). The modified
