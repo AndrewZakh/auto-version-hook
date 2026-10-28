@@ -49,7 +49,7 @@ only when staging is genuinely behind.
 From GitHub, straight into the current environment:
 
 ```sh
-pip install git+https://github.com/<org>/auto-git.git
+pip install git+https://github.com/AndrewZakh/auto-version-hook.git
 ```
 
 Or from a local checkout:
@@ -230,3 +230,7 @@ pytest
 The tests create throwaway git repositories in a temporary directory and run the hook
 end to end (trunk-based and GitFlow scenarios, including feat-1/feat-2, catch-up and
 merge-skip).
+
+## License
+
+Licensed under the [MIT license](LICENSE).
