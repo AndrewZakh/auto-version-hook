@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="avh-logo-title">
+  <title id="avh-logo-title">auto-version-hook: an owl on the commit branch, watching the release</title>
+
+  <!-- night tile -->
+  <rect width="512" height="512" rx="84" fill="#0f1728"/>
+
+  <!-- feature branch merging into main -->
+  <path d="M208 356 C262 356 262 242 318 242 C374 242 374 356 424 356"
+        fill="none" stroke="#f2e9de" stroke-width="7" opacity="0.75"/>
+  <circle cx="318" cy="242" r="11" fill="#0f1728" stroke="#f2e9de" stroke-width="7"/>
+
+  <!-- main line -->
+  <path d="M56 356 H456" stroke="#f2e9de" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="120" cy="356" r="11" fill="#0f1728" stroke="#f2e9de" stroke-width="7"/>
+  <circle cx="208" cy="356" r="11" fill="#0f1728" stroke="#f2e9de" stroke-width="7"/>
+
+  <!-- release: bumped tip + tag -->
+  <circle cx="424" cy="356" r="15" fill="#fca311"/>
+  <rect x="384" y="390" width="80" height="32" rx="16" fill="none" stroke="#fca311" stroke-width="6"/>
+
+  <!-- the owl, watching the release -->
+  <path d="M206 234 L222 192 L246 222 Z" fill="#f2e9de"/>
+  <path d="M254 222 L278 192 L294 234 Z" fill="#f2e9de"/>
+  <ellipse cx="250" cy="278" rx="56" ry="64" fill="#f2e9de"/>
+  <g stroke="#f2e9de" stroke-width="6" stroke-linecap="round" fill="none">
+    <path d="M235 328 V344"/>
+    <path d="M226 345 Q224 352 229 356"/>
+    <path d="M235 345 Q235 354 240 357"/>
+    <path d="M244 345 Q247 352 251 356"/>
+    <path d="M267 328 V344"/>
+    <path d="M258 345 Q256 352 261 356"/>
+    <path d="M267 345 Q267 354 272 357"/>
+    <path d="M276 345 Q279 352 283 356"/>
+  </g>
+  <circle cx="228" cy="254" r="24" fill="#fca311"/>
+  <circle cx="272" cy="254" r="24" fill="#fca311"/>
+  <circle cx="237" cy="256" r="10" fill="#0f1728"/>
+  <circle cx="281" cy="256" r="10" fill="#0f1728"/>
+  <path d="M236 272 L264 272 L250 293 Z" fill="#fca311"/>
+</svg>
