@@ -37,7 +37,8 @@ hotfix → master bypassing staging): the branch lifecycle is described by a dec
 The default graph (works without any config): `main` (master/main) ← `staging`
 (dev/development/staging) ← `feature`; `patch` → main bypassing staging; `tech` → staging
 with the `ignore` policy. A trunk-based team simply doesn't need the `staging` class — if
-there is no staging branch on origin, features automatically base on main.
+there is no staging branch on origin, features automatically base on main. Both flavors,
+side by side: [Two Git workflows out of the box](#two-git-workflows-out-of-the-box).
 
 ### Hotfixes and quiet catch-up
 
@@ -48,6 +49,80 @@ consequences, so the `patch` class goes straight into `main`, while `staging` **
 catches up** on its next commit — the manual GitFlow practice of "pulling the hotfix into
 develop" becomes automated. Catch-up can't do any harm: the version only ever goes up, and
 only when staging is genuinely behind.
+
+## Two Git workflows out of the box
+
+This is why `branch_flow` exists: one declarative graph describes either of the two
+branching styles the tool was designed around. You never patch the tool — you describe
+your flow in the config.
+
+### Trunk-based / GitHub flow: `feature → main`
+
+No integration branch at all. Features base on `main` directly; the default config
+already behaves this way when `origin/staging` does not exist (the target resolution
+walks up the chain):
+
+```yaml
+branch_flow:
+  - name: main
+    regex: '^ma(in|ster)$'
+    protected: true
+    policy: keep
+
+  - name: feature
+    regex: '^feat(ure)?'
+    target: main        # base on main — no staging hop
+    policy: increment
+    bump: minor
+```
+
+```mermaid
+flowchart LR
+    feature["feature"] -->|"bump minor"| main["main · protected"]
+```
+
+### Classic GitFlow: `feature → staging → main`
+
+An integration branch between features and the release. Features base on the **live**
+staging version; hotfixes (`patch`) bypass staging straight into `main`, and staging
+quietly catches up on its next commit:
+
+```yaml
+branch_flow:
+  - name: main
+    regex: '^ma(ster|in)$' # master or main
+    protected: true
+    policy: keep
+
+  - name: staging
+    regex: '^(dev(elop(ment)?)?|stag(ing)?)$'
+    protected: true
+    target: main
+    policy: keep        # behind main — quiet catch-up
+
+  - name: patch
+    regex: '^patch'
+    target: main
+    policy: increment
+    bump: patch         # hotfix: straight to main, bypassing staging
+
+  - name: feature
+    regex: '^feat(ure)?'
+    target: staging
+    policy: increment
+    bump: minor
+```
+
+```mermaid
+flowchart LR
+    feature["feature"] -->|"bump minor"| staging["staging · protected"]
+    patch["patch"] -->|"bump patch"| main["main · protected"]
+    staging -->|"keep · catch-up"| main
+```
+
+Both snippets are the minimal `branch_flow` for each style; the shipped default config
+additionally covers `tech` branches ([config.example.yml](config.example.yml)). Eyeball
+your own graph any time with `auto-version-hook --graph`.
 
 ## Installation
 
@@ -119,12 +194,33 @@ git:
   fetch: true          # ls-remote + fetch of the targets on every run
 
 branch_flow:           # order = matching priority, first match wins
-  - {name: main,    regex: '^(master|main)$', protected: true, policy: keep}
-  - {name: staging, regex: '^(dev(elop(ment)?)?|stag(ing)?)$', protected: true,
-      target: main, policy: keep}             # no bump; behind main — quiet catch-up
-  - {name: patch,   regex: '^patch', target: main, policy: increment, bump: patch}
-  - {name: feature, regex: '^feat(ure)?', target: staging, policy: increment, bump: minor}
-  - {name: tech,    regex: '^devops/tech.+', target: staging, policy: ignore}
+  - name: main
+    regex: '^ma(ster|in)$' # master or main
+    protected: true
+    policy: keep
+
+  - name: staging
+    regex: '^(dev(elop(ment)?)?|stag(ing)?)$'
+    protected: true
+    target: main
+    policy: keep       # no bump; behind main — quiet catch-up
+
+  - name: patch
+    regex: '^patch'
+    target: main
+    policy: increment
+    bump: patch
+
+  - name: feature
+    regex: '^feat(ure)?'
+    target: staging
+    policy: increment
+    bump: minor
+
+  - name: tech
+    regex: '^(devops|tech|docs).+'
+    target: staging
+    policy: ignore
 
 hooks:
   auto_stage: true     # git add the version file after changing it
@@ -207,18 +303,18 @@ of the target branch (staging) at the moment of the commit. Step by step:
 
 ```mermaid
 gitGraph
-   commit id: "master v1.0.0"
-   branch staging
-   commit id: "staging v1.0.0"
-   branch feat-1
-   commit id: "feat-1: v1.0.0 -> v1.1.0" type: HIGHLIGHT
-   checkout staging
-   branch feat-2
-   commit id: "feat-2: v1.0.0 -> v1.1.0" type: HIGHLIGHT
-   checkout staging
-   merge feat-1 id: "staging -> v1.1.0"
-   checkout feat-2
-   commit id: "feat-2: v1.1.0 -> v1.2.0" type: HIGHLIGHT
+    commit id: "master v1.0.0"
+    branch staging
+    commit id: "staging v1.0.0"
+    branch feat-1
+    commit id: "feat-1: v1.0.0 -> v1.1.0" type: HIGHLIGHT
+    checkout staging
+    branch feat-2
+    commit id: "feat-2: v1.0.0 -> v1.1.0" type: HIGHLIGHT
+    checkout staging
+    merge feat-1 id: "staging -> v1.1.0"
+    checkout feat-2
+    commit id: "feat-2: v1.1.0 -> v1.2.0" type: HIGHLIGHT
 ```
 
 Why: the fast don't wait for the slow; conflicts in `env.yml` and breakage from other

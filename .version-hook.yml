@@ -1,0 +1,47 @@
+---
+# Trunc-based development
+
+version:
+  file: env.yml        # version file path, relative to the repository root
+  key: version         # yq-style path to the version inside the file:
+                       #   version | app.build.version | items[0].version | labels."app.version".
+  parse_regex: '^v(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)$'
+
+git:
+  remote: origin
+  fetch: true          # ls-remote + fetch the target branches on every run
+
+branch_flow:
+  - name: main         # release branch, the top of the graph
+    regex: '^ma(ster|in)$'
+    protected: true    # a direct commit never bumps the version
+    policy: keep
+
+  - name: patch        # hotfix: straight to main, bypassing staging
+    regex: '^patch'
+    target: main
+    policy: increment  # take main's version and increment...
+    bump: patch        # ...the `patch` group of version.parse_regex
+    reset_lower_parts: false  # true: numeric groups to the right are zeroed
+
+  - name: feature
+    regex: '^feat(ure)?'
+    target: main    # bases on staging's live version; if staging does not
+                       # exist yet, the chain is walked up to main
+    policy: increment
+    bump: minor
+    reset_lower_parts: false
+
+  - name: tech         # version is forced to the target's, never bumped
+    regex: '^(devops|tech|docs).+'
+    target: main
+    policy: ignore
+
+# Validation happens on every run: names are unique, targets exist, the graph
+# has no cycles, bump groups exist in parse_regex. `auto-version-hook --graph`
+# prints this graph as Mermaid so you can eyeball it.
+
+hooks:
+  auto_stage: true     # `git add` the version file after changing it
+  on_error: fail       # "fail": block the commit, "warn": let it through
+  skip_merges: true    # do not act on merge commits (MERGE_HEAD present)

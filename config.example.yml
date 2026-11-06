@@ -49,7 +49,7 @@ branch_flow:
     reset_lower_parts: false
 
   - name: tech         # version is forced to the target's, never bumped
-    regex: '^devops/tech.+'
+    regex: '^(devops|tech|docs).+'
     target: staging
     policy: ignore
 
