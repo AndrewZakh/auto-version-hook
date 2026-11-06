@@ -1,0 +1,7 @@
+- id: auto-version
+  name: auto version bump
+  description: Bump the version in env.yml based on the branch name before each commit.
+  entry: auto-version-hook
+  language: python
+  always_run: true
+  pass_filenames: false

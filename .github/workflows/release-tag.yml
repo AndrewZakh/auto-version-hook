@@ -43,3 +43,8 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git tag -a "$VERSION" -m "release $VERSION"
           git push origin "refs/tags/$VERSION"
+          # roll the "latest" tag for pre-commit consumers (rev: latest);
+          # skipped above when no new release happened — latest then already
+          # points at the newest release
+          git tag -f latest
+          git push -f origin refs/tags/latest
