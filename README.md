@@ -2,6 +2,9 @@
 
 ![OWL-THAT-WATCHES](./assets/logo-dark.svg)
 
+[![release](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2FAndrewZakh%2Fauto-version-hook%2Fmain%2Fenv.yml&query=%24.version&label=release&color=fca311)](https://github.com/AndrewZakh/auto-version-hook/tags)
+[![CI](https://github.com/AndrewZakh/auto-version-hook/actions/workflows/ci.yml/badge.svg)](https://github.com/AndrewZakh/auto-version-hook/actions/workflows/ci.yml)
+
 A Git pre-commit hook written in Python: on every commit it determines the branch class
 from the branch name, takes the base version from the branch this work is being promoted
 to (`target`), and updates the version in a YAML file (`env.yml` by default). The modified
@@ -73,7 +76,19 @@ Manual option — the `.git/hooks/pre-commit` file:
 exec auto-version-hook "$@"
 ```
 
-[pre-commit framework](https://pre-commit.com) option (local hook, no environment isolation):
+[pre-commit framework](https://pre-commit.com) option — the hook straight from this
+repository; `rev: latest` is a moving tag that always tracks the newest release
+(pin a `v*` tag instead if you want to freeze the version):
+
+```yaml
+repos:
+  - repo: https://github.com/AndrewZakh/auto-version-hook
+    rev: latest
+    hooks:
+      - id: auto-version
+```
+
+Already installed locally and prefer no environment isolation? Use a local hook instead:
 
 ```yaml
 repos:
