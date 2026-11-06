@@ -99,11 +99,18 @@ def _check_result(result, cfg: AppConfig) -> int:
         )
         return 1
     if result.would_change:
-        print(
-            f"auto-version-hook: version check failed: {cfg.version.file} must be "
-            f"{result.version} (run the pre-commit hook and commit again)",
-            file=sys.stderr,
-        )
+        if result.version is not None:
+            print(
+                f"auto-version-hook: version check failed: {cfg.version.file} must be "
+                f"{result.version} (run the pre-commit hook and commit again)",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                f"auto-version-hook: version check failed: version_files mirror(s) must be "
+                f"{result.reference} (run the pre-commit hook and commit again)",
+                file=sys.stderr,
+            )
         return 1
     log.info("auto-version-hook: version check passed")
     return 0

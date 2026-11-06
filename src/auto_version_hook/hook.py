@@ -14,9 +14,10 @@ Semantics (docs/branch-flow-design.md):
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from . import gittools
 from .config import AppConfig
@@ -38,6 +39,7 @@ class HookResult:
     target_branch: Optional[str] = None
     base: Optional[RegexVersion] = None
     version: Optional[RegexVersion] = None
+    reference: Optional[RegexVersion] = None  # the version mirrors are synced to
     changed: bool = False
     dry_run: bool = False
     skipped: bool = False
@@ -87,34 +89,133 @@ def run_hook(
             local_version = None  # broken local value: policies overwrite it below
 
     new_version = _apply_policy(cls, branch, base, local_version)
-    if new_version is None:
-        return HookResult(branch, cls.name, target_branch, base, local_version, changed=False, dry_run=dry_run)
+    # Mirrors follow the master version: the freshly computed one when a bump
+    # fires, otherwise the master's current value (self-healing for drift).
+    reference = new_version if new_version is not None else local_version
+    mirrored: List[str] = []
+    if reference is not None and cfg.version_files:
+        mirrored = _mirror_files(root, cfg, reference, dry_run=dry_run)
+
+    if new_version is None and not mirrored:
+        return HookResult(
+            branch,
+            cls.name,
+            target_branch,
+            base,
+            local_version,
+            reference=reference,
+            changed=False,
+            dry_run=dry_run,
+        )
 
     old_label = str(local_version) if local_version is not None else "<none>"
     where = f"[{cls.name} -> {cfg.git.remote}/{target_branch}]" if target_branch else f"[{cls.name}]"
-    log.info(
-        "%sauto-version-hook: %s %s: %s -> %s in %s",
-        "[dry-run] " if dry_run else "",
-        branch,
-        where,
-        old_label,
-        new_version,
-        cfg.version.file,
-    )
+    if new_version is not None:
+        log.info(
+            "%sauto-version-hook: %s %s: %s -> %s in %s",
+            "[dry-run] " if dry_run else "",
+            branch,
+            where,
+            old_label,
+            new_version,
+            cfg.version.file,
+        )
+    if mirrored:
+        log.info(
+            "%sauto-version-hook: mirrored %s into %s",
+            "[dry-run] " if dry_run else "",
+            reference,
+            ", ".join(mirrored),
+        )
     if dry_run:
-        return HookResult(branch, cls.name, target_branch, base, new_version, changed=False, dry_run=True, would_change=True)
+        return HookResult(
+            branch,
+            cls.name,
+            target_branch,
+            base,
+            new_version,
+            reference=reference,
+            changed=False,
+            dry_run=True,
+            would_change=True,
+        )
 
-    text = vfile.read_text(encoding="utf-8") if vfile.exists() else ""
-    try:
-        new_text = write_key(text, cfg.version.key, str(new_version))
-    except VersionFileError as exc:
-        raise HookError(f"cannot update {cfg.version.key!r} in {cfg.version.file}: {exc}") from exc
-    vfile.parent.mkdir(parents=True, exist_ok=True)
-    vfile.write_text(new_text, encoding="utf-8")
+    if new_version is not None:
+        text = vfile.read_text(encoding="utf-8") if vfile.exists() else ""
+        try:
+            new_text = write_key(text, cfg.version.key, str(new_version))
+        except VersionFileError as exc:
+            raise HookError(f"cannot update {cfg.version.key!r} in {cfg.version.file}: {exc}") from exc
+        vfile.parent.mkdir(parents=True, exist_ok=True)
+        vfile.write_text(new_text, encoding="utf-8")
+        if cfg.hooks.auto_stage:
+            gittools.stage(root, cfg.version.file)
+            log.debug("staged %s", cfg.version.file)
     if cfg.hooks.auto_stage:
-        gittools.stage(root, cfg.version.file)
-        log.debug("staged %s", cfg.version.file)
-    return HookResult(branch, cls.name, target_branch, base, new_version, changed=True)
+        for rel_path in mirrored:
+            gittools.stage(root, rel_path)
+            log.debug("staged %s", rel_path)
+    return HookResult(
+        branch, cls.name, target_branch, base, new_version, reference=reference, changed=True
+    )
+
+
+def _mirror_files(
+    root: Path, cfg: AppConfig, reference: RegexVersion, dry_run: bool
+) -> List[str]:
+    """Mirror the reference version into every cfg.version_files entry.
+
+    Entry regexes are compiled with re.MULTILINE (anchors bind per line) and
+    their named groups — a subset of version.parse_regex groups, enforced by
+    the validator — are replaced by the reference version's group values.
+    The first match is bumped unless replace_all is set; more than one match
+    produces a warning. Missing files are skipped, a file without a single
+    match is a HookError. Returns the paths that were written (or, in
+    dry-run, would have been).
+    """
+    changed: List[str] = []
+    for entry in cfg.version_files:
+        path = root / entry.path
+        if not path.exists():
+            log.debug("version file %s does not exist — skipped", entry.path)
+            continue
+        pattern = re.compile(entry.regex, re.MULTILINE)
+        text = path.read_text(encoding="utf-8")
+        matches = list(pattern.finditer(text))
+        if not matches:
+            raise HookError(
+                f"{entry.path}: no match for version_files regex {entry.regex!r}"
+            )
+        if len(matches) > 1 and not entry.replace_all:
+            log.warning(
+                "%d matches for %s — bumping the first; set replace_all: true to sync all",
+                len(matches),
+                entry.path,
+            )
+
+        def _splice(match: re.Match) -> str:
+            replaced = match.group(0)
+            base = match.start()
+            spans = sorted(
+                (
+                    (match.start(name) - base, match.end(name) - base, reference.group(name))
+                    for name in pattern.groupindex
+                ),
+                key=lambda item: item[0],
+                reverse=True,
+            )
+            for start, end, value in spans:
+                if value is not None:
+                    replaced = replaced[:start] + value + replaced[end:]
+            return replaced
+
+        new_text = pattern.sub(_splice, text, count=0 if entry.replace_all else 1)
+        if new_text == text:
+            continue
+        changed.append(entry.path)
+        if not dry_run:
+            path.write_text(new_text, encoding="utf-8")
+    return changed
 
 
 def _resolve_base(

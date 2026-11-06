@@ -7,6 +7,13 @@ version:
                        #   version | app.build.version | items[0].version | labels."app.version".
   parse_regex: '^v(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)$'
 
+# pyproject.toml mirrors the master version (the hook splices the new
+# version's groups into the first match of the regex)
+version_files:
+  - path: pyproject.toml
+    regex: '^version = "(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)"$'
+    replace_all: false
+
 git:
   remote: origin
   fetch: true          # ls-remote + fetch the target branches on every run

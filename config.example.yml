@@ -56,6 +56,16 @@ branch_flow:
   #   policy: keep       # no bump; if staging is behind main (a hotfix
   #                      # landed), it quietly catches up on the next commit
 
+# Optional: files that mirror the master version (defined in `version:` above).
+# Entry regexes are matched with re.MULTILINE; named groups must be a subset
+# of version.parse_regex groups. The first match is bumped (a warning is
+# logged for more); replace_all: true syncs all matches. Missing files are
+# skipped; a no-match in an existing file fails the run.
+# version_files:
+#   - path: pyproject.toml
+#     regex: '^version = "(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)"$'
+#     replace_all: false
+
 # Validation happens on every run: names are unique, targets exist, the graph
 # has no cycles, bump groups exist in parse_regex. `auto-version-hook --graph`
 # prints this graph as Mermaid so you can eyeball it.

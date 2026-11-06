@@ -88,10 +88,25 @@ class HookSettings:
 
 
 @dataclass
+class VersionFileConfig:
+    """A text file that mirrors the master version (see :class:`VersionConfig`).
+
+    The entry regex is matched with re.MULTILINE; its named groups (which must
+    be a subset of version.parse_regex groups) are replaced by the new
+    version's group values. The first match is bumped unless replace_all.
+    """
+
+    path: str
+    regex: str
+    replace_all: bool = False
+
+
+@dataclass
 class AppConfig:
     version: VersionConfig = field(default_factory=VersionConfig)
     git: GitConfig = field(default_factory=GitConfig)
     branch_flow: List[BranchClass] = field(default_factory=_default_flow)
+    version_files: List[VersionFileConfig] = field(default_factory=list)
     hooks: HookSettings = field(default_factory=HookSettings)
     source: Optional[Path] = None
 
@@ -136,8 +151,9 @@ def load_config(explicit: Optional[str], repo_root: Path) -> AppConfig:
     _load_section(cfg.git, "git", raw, path)
     _load_section(cfg.hooks, "hooks", raw, path)
     _load_flow(cfg, raw, path)
+    _load_version_files(cfg, raw, path)
 
-    unknown = set(raw) - {"version", "git", "branch_flow", "hooks"}
+    unknown = set(raw) - {"version", "git", "branch_flow", "hooks", "version_files"}
     if unknown:
         raise ConfigError(f"{path}: unknown section(s): {', '.join(sorted(unknown))}")
 
@@ -179,6 +195,26 @@ def _load_flow(cfg: AppConfig, raw: dict, path: Path) -> None:
     cfg.branch_flow = classes
 
 
+def _load_version_files(cfg: AppConfig, raw: dict, path: Path) -> None:
+    entries_raw = raw.get("version_files")
+    if entries_raw is None:
+        return
+    if not isinstance(entries_raw, list) or not entries_raw:
+        raise ConfigError(f"{path}: version_files must be a non-empty list")
+    known = {f.name for f in fields(VersionFileConfig)}
+    entries: List[VersionFileConfig] = []
+    for index, item in enumerate(entries_raw):
+        if not isinstance(item, dict):
+            raise ConfigError(f"{path}: version_files[{index}] must be a mapping")
+        unknown = set(item) - known
+        if unknown:
+            raise ConfigError(
+                f"{path}: version_files[{index}]: unknown option(s): {', '.join(sorted(unknown))}"
+            )
+        entries.append(VersionFileConfig(**item))
+    cfg.version_files = entries
+
+
 def _validate(cfg: AppConfig, path: Optional[Path]) -> None:
     where = str(path) if path else "defaults"
 
@@ -201,6 +237,7 @@ def _validate(cfg: AppConfig, path: Optional[Path]) -> None:
     _require_bool(cfg.hooks.skip_merges, "hooks.skip_merges", where)
 
     _validate_flow(cfg.branch_flow, spec, where)
+    _validate_version_files(cfg.version_files, spec, where)
 
 
 def _validate_flow(flow: List[BranchClass], spec: VersionSpec, where: str) -> None:
@@ -302,6 +339,24 @@ def _is_branchlike(name: str) -> bool:
         and ".." not in name
         and not name.endswith(("/", ".", ".lock"))
     )
+
+
+def _validate_version_files(
+    entries: List[VersionFileConfig], spec: VersionSpec, where: str
+) -> None:
+    """Mirror regex groups must match the master groups by name."""
+    parse_groups = set(spec.group_names)
+    for index, entry in enumerate(entries):
+        _require_non_empty_str(entry.path, f"version_files[{index}].path", where)
+        _require_regex(entry.regex, f"version_files[{index}].regex", where)
+        _require_bool(entry.replace_all, f"version_files[{index}].replace_all", where)
+        extra = set(re.compile(entry.regex).groupindex) - parse_groups
+        if extra:
+            raise ConfigError(
+                f"{where}: version_files[{index}].regex: group(s) {', '.join(sorted(extra))} "
+                f"are not named groups of version.parse_regex; mirror groups must match "
+                f"the master groups by name"
+            )
 
 
 def _require_non_empty_str(value: object, option: str, where: str) -> None:

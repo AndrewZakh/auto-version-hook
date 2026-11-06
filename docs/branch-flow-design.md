@@ -60,6 +60,13 @@ Trunk-based — the same without the `staging` class (feature.target: main).
 below stays as the GitFlow illustration. Discussed and agreed on 2026-11-06: the
 majority of GitHub-hosted projects are trunk-based, so zero-config must match them.
 
+**v1.1.0: `version_files`** — an optional list of mirrors of the master version:
+entries of `{path, regex, replace_all}`. Entry regexes run with re.MULTILINE; their
+named groups must be a subset of parse_regex groups and receive the new values
+spliced in. First match by default (warning on more), `replace_all: true` syncs
+all. Missing files are skipped, a no-match in an existing file is a HookError;
+mirrors are absolute — a mirror ahead of the master is dragged back.
+
 **Removed:** `git.protected_branch`, the entire `bump` section (`rules`,
 `ignore_branches_regex`, `protected_action`, the global `reset_lower_parts`), the
 `--protected-branch` CLI option.

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "auto-version-hook"
-version = "0.1.0"
+version = "1.1.0"
 description = "Git pre-commit hook that bumps a version in a YAML file based on the branch name"
 readme = "README.md"
 requires-python = ">=3.11"
