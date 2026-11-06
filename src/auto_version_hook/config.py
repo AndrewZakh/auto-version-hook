@@ -49,20 +49,18 @@ DEFAULT_PARSE_REGEX = r"^v(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)$"
 
 
 def _default_flow() -> List[BranchClass]:
+    """v1.0.0: the default graph is trunk-based (feature -> main, no staging).
+    Classic GitFlow teams add a `staging` class and point `feature` at it —
+    see docs/branch-flow-design.md."""
     return [
         BranchClass(name="main", regex=r"^(master|main)$", protected=True, policy=KEEP),
-        BranchClass(
-            name="staging",
-            regex=r"^(dev(elop(ment)?)?|stag(ing)?)$",
-            protected=True,
-            target="main",
-            policy=KEEP,
-        ),
         BranchClass(name="patch", regex=r"^patch", target="main", policy=INCREMENT, bump="patch"),
         BranchClass(
-            name="feature", regex=r"^feat(ure)?", target="staging", policy=INCREMENT, bump="minor"
+            name="feature", regex=r"^feat(ure)?", target="main", policy=INCREMENT, bump="minor"
         ),
-        BranchClass(name="tech", regex=r"^devops/tech.+", target="staging", policy=IGNORE),
+        BranchClass(
+            name="tech", regex=r"^(devops|tech|docs).+", target="main", policy=IGNORE
+        ),
     ]
 
 

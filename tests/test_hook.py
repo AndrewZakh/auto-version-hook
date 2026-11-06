@@ -54,7 +54,7 @@ def test_bump_by_branch(repo, git, branch, branch_class, expected):
     result = run_hook(AppConfig(), repo=repo)
     assert result.changed is True
     assert result.branch_class == branch_class
-    # no staging exists: the feature chain walks up to main
+    # the default graph is trunk-based: feature targets main directly
     assert result.target_branch == "master"
     assert read_version(repo) == expected
     assert "env.yml" in staged_files(git, repo)
@@ -70,7 +70,26 @@ def test_main_is_untouched(repo, git):
     assert "env.yml" not in staged_files(git, repo)
 
 
-# --- GitFlow ---
+# --- GitFlow scenarios: an explicit staging-bearing flow (the v0.x default;
+# since v1.0.0 the shipped default is trunk-based, so GitFlow needs a config) ---
+
+
+def gitflow_flow() -> list[BranchClass]:
+    return [
+        BranchClass(name="main", regex=r"^(master|main)$", protected=True, policy="keep"),
+        BranchClass(
+            name="staging",
+            regex=r"^(dev(elop(ment)?)?|stag(ing)?)$",
+            protected=True,
+            target="main",
+            policy="keep",
+        ),
+        BranchClass(name="patch", regex=r"^patch", target="main", policy="increment", bump="patch"),
+        BranchClass(
+            name="feature", regex=r"^feat(ure)?", target="staging", policy="increment", bump="minor"
+        ),
+        BranchClass(name="tech", regex=r"^devops/tech.+", target="staging", policy="ignore"),
+    ]
 
 
 def test_feature_bases_on_staging_not_master(gitflow_repo, git):
@@ -78,7 +97,7 @@ def test_feature_bases_on_staging_not_master(gitflow_repo, git):
     set_version(git, gitflow_repo, "v1.2.9")
     git("checkout", "-b", "feature/login", cwd=gitflow_repo)
     stage_change(git, gitflow_repo)
-    result = run_hook(AppConfig(), repo=gitflow_repo)
+    result = run_hook(AppConfig(branch_flow=gitflow_flow()), repo=gitflow_repo)
     assert result.target_branch == "staging"
     # minor bump keeps the patch part: v1.2.9 -> v1.3.9 (not v1.3.3 from master)
     assert read_version(gitflow_repo) == "v1.3.9"
@@ -90,7 +109,7 @@ def test_second_feature_rebases_on_live_staging(gitflow_repo, git):
     git("checkout", "-b", "feat-1", cwd=repo)
     (repo / "a.txt").write_text("1\n", encoding="utf-8")
     git("add", "-A", cwd=repo)
-    run_hook(AppConfig(), repo=repo)
+    run_hook(AppConfig(branch_flow=gitflow_flow()), repo=repo)
     git("add", "-A", cwd=repo)
     git("commit", "-m", "feat-1", cwd=repo)
 
@@ -101,7 +120,7 @@ def test_second_feature_rebases_on_live_staging(gitflow_repo, git):
     git("checkout", "-b", "feat-2", cwd=repo)
     (repo / "b.txt").write_text("2\n", encoding="utf-8")
     git("add", "-A", cwd=repo)
-    result = run_hook(AppConfig(), repo=repo)
+    result = run_hook(AppConfig(branch_flow=gitflow_flow()), repo=repo)
     assert result.changed is True
     # staging advanced to v1.3.3 (feat-1), so feat-2 claims the next minor
     assert read_version(repo) == "v1.4.3"
@@ -113,7 +132,7 @@ def test_tech_ignore_syncs_to_staging(gitflow_repo, git):
     git("checkout", "-b", "devops/tech-cleanup", cwd=gitflow_repo)
     (gitflow_repo / "env.yml").write_text("version: v9.9.9\n", encoding="utf-8")
     stage_change(git, gitflow_repo)
-    result = run_hook(AppConfig(), repo=gitflow_repo)
+    result = run_hook(AppConfig(branch_flow=gitflow_flow()), repo=gitflow_repo)
     assert result.changed is True
     assert result.branch_class == "tech"
     assert read_version(gitflow_repo) == "v1.2.9"
@@ -124,7 +143,7 @@ def test_staging_catchup_after_hotfix(gitflow_repo, git):
     set_version(git, gitflow_repo, "v1.2.4")  # a hotfix reached main
     git("checkout", "staging", cwd=gitflow_repo)  # staging still at v1.2.3
     stage_change(git, gitflow_repo)
-    result = run_hook(AppConfig(), repo=gitflow_repo)
+    result = run_hook(AppConfig(branch_flow=gitflow_flow()), repo=gitflow_repo)
     assert result.changed is True
     assert result.branch_class == "staging"
     assert result.target_branch == "master"
@@ -136,7 +155,7 @@ def test_staging_ahead_of_main_is_untouched(gitflow_repo, git):
     git("checkout", "staging", cwd=gitflow_repo)
     set_version(git, gitflow_repo, "v1.5.0")
     stage_change(git, gitflow_repo)
-    result = run_hook(AppConfig(), repo=gitflow_repo)
+    result = run_hook(AppConfig(branch_flow=gitflow_flow()), repo=gitflow_repo)
     assert result.changed is False
     assert read_version(gitflow_repo) == "v1.5.0"
 
@@ -148,7 +167,7 @@ def test_exact_class_name_resolves_ambiguous_target(gitflow_repo, git):
     git("push", "-q", "origin", "dev", cwd=gitflow_repo)
     git("checkout", "-b", "feature/x", cwd=gitflow_repo)
     stage_change(git, gitflow_repo)
-    result = run_hook(AppConfig(), repo=gitflow_repo)
+    result = run_hook(AppConfig(branch_flow=gitflow_flow()), repo=gitflow_repo)
     assert result.target_branch == "staging"
 
 
@@ -329,7 +348,8 @@ def test_cli_graph(repo, git):
     assert proc.returncode == 0, proc.stderr
     out = proc.stdout
     assert out.startswith("flowchart TD")
-    assert "feature" in out and "staging" in out and "bump minor" in out
+    assert "feature" in out and "bump minor" in out
+    assert "staging" not in out  # the default graph is trunk-based
 
 
 # --- --check (CI validator mode) ---
@@ -393,7 +413,7 @@ def test_check_without_branch_in_detached_head_fails(repo, git):
 def test_check_passes_on_merge_commit_with_skip_merges(gitflow_repo, git):
     git("checkout", "-b", "feature/mrg", cwd=gitflow_repo)
     stage_change(git, gitflow_repo)
-    run_hook(AppConfig(), repo=gitflow_repo)
+    run_hook(AppConfig(branch_flow=gitflow_flow()), repo=gitflow_repo)
     git("add", "-A", cwd=gitflow_repo)
     git("commit", "-m", "work", cwd=gitflow_repo)
     git("checkout", "-b", "side", "master", cwd=gitflow_repo)
