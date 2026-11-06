@@ -43,7 +43,7 @@ branch_flow:                         # order = matching priority when the branch
     reset_lower_parts: false
 
   - name: tech
-    regex: '^devops/tech.+'
+    regex: '^(devops|tech|docs).+'
     target: staging
     policy: ignore                   # the version is force-synced with the target
 
@@ -54,6 +54,11 @@ hooks:
 ```
 
 Trunk-based — the same without the `staging` class (feature.target: main).
+
+**Since v1.0.0 the shipped default IS this trunk variant** (no `staging` class;
+`tech` targets `main` with the broadened regex `^(devops|tech|docs).+`). The YAML
+below stays as the GitFlow illustration. Discussed and agreed on 2026-11-06: the
+majority of GitHub-hosted projects are trunk-based, so zero-config must match them.
 
 **Removed:** `git.protected_branch`, the entire `bump` section (`rules`,
 `ignore_branches_regex`, `protected_action`, the global `reset_lower_parts`), the

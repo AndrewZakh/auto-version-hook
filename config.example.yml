@@ -20,20 +20,15 @@ git:
 # it is also where the base version comes from. Target resolution prefers a
 # remote branch named exactly like the class (origin/<name>), then falls back
 # to the class regex (which must match exactly one branch).
+# The default graph is trunk-based. Classic GitFlow teams add a `staging`
+# class and point `feature` at it (the commented block at the bottom).
 branch_flow:
   - name: main         # release branch, the top of the graph
     regex: '^(master|main)$'
     protected: true    # a direct commit never bumps the version
     policy: keep
 
-  - name: staging      # integration branch (GitFlow); absent in trunk-based
-    regex: '^(dev(elop(ment)?)?|stag(ing)?)$'
-    protected: true
-    target: main
-    policy: keep       # no bump; if staging is behind main (a hotfix landed),
-                       # its version quietly catches up on the next commit
-
-  - name: patch        # hotfix: straight to main, bypassing staging
+  - name: patch        # hotfix-style branch: straight to main
     regex: '^patch'
     target: main
     policy: increment  # take main's version and increment...
@@ -42,16 +37,24 @@ branch_flow:
 
   - name: feature
     regex: '^feat(ure)?'
-    target: staging    # bases on staging's live version; if staging does not
-                       # exist yet, the chain is walked up to main
+    target: main       # trunk-based: bases on main directly
     policy: increment
     bump: minor
     reset_lower_parts: false
 
   - name: tech         # version is forced to the target's, never bumped
     regex: '^(devops|tech|docs).+'
-    target: staging
+    target: main
     policy: ignore
+
+  # GitFlow teams: uncomment the staging class and change feature's
+  # target to staging
+  # - name: staging      # integration branch
+  #   regex: '^(dev(elop(ment)?)?|stag(ing)?)$'
+  #   protected: true
+  #   target: main
+  #   policy: keep       # no bump; if staging is behind main (a hotfix
+  #                      # landed), it quietly catches up on the next commit
 
 # Validation happens on every run: names are unique, targets exist, the graph
 # has no cycles, bump groups exist in parse_regex. `auto-version-hook --graph`

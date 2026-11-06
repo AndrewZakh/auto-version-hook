@@ -11,14 +11,16 @@ def test_defaults_match_the_design(tmp_path):
     assert cfg.hooks.skip_merges is True
     assert cfg.hooks.on_error == "fail"
 
+    # since v1.0.0 the default graph is trunk-based — no staging class
     names = [c.name for c in cfg.branch_flow]
-    assert names == ["main", "staging", "patch", "feature", "tech"]
+    assert names == ["main", "patch", "feature", "tech"]
     by_name = {c.name: c for c in cfg.branch_flow}
     assert by_name["main"].protected is True and by_name["main"].target is None
-    assert by_name["staging"].protected is True and by_name["staging"].target == "main"
     assert by_name["patch"].policy == "increment" and by_name["patch"].bump == "patch"
-    assert by_name["feature"].target == "staging" and by_name["feature"].bump == "minor"
-    assert by_name["tech"].policy == "ignore"
+    assert by_name["patch"].target == "main"
+    assert by_name["feature"].target == "main" and by_name["feature"].bump == "minor"
+    assert by_name["tech"].policy == "ignore" and by_name["tech"].target == "main"
+    assert by_name["tech"].regex == r"^(devops|tech|docs).+"
 
 
 def test_load_full_config(tmp_path):
