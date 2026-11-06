@@ -231,6 +231,29 @@ Class fields: `name`, `regex` (re.search against the branch name), `protected`, 
 one: `v1.2.3` → `v2.0.0`; non-numeric groups such as `mark` are preserved — `v1.2.3-rc1` →
 `v1.2.4-rc1`).
 
+### Version mirrors (`version_files`)
+
+The file defined in `version:` is the master — it holds the single version of the flow.
+Other files that must carry the same version are listed in `version_files`; after every
+bump the hook splices the new group values into each of them, so all version strings
+move together:
+
+```yaml
+version_files:
+  - path: pyproject.toml
+    regex: '^version = "(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)"$'
+    # replace_all: true   # default false: bump the first match, warn on more
+```
+
+Rules: entry regexes are matched with `re.MULTILINE` and their named groups must be a
+subset of `version.parse_regex` groups (checked at config load); the new group values
+are spliced in place and everything around them stays untouched. The first match is
+bumped and a warning is logged when a file contains more than one match;
+`replace_all: true` syncs all matches instead. Missing files are skipped, but a file
+without a single match blocks the commit — that is config rot and should be loud.
+Mirrors are absolute: a mirror that is somehow ahead of the master is dragged back down.
+`--check` and `auto_stage` cover mirrors along with the master.
+
 The config is validated on every run: unique names, compilable regexes, existing targets,
 no cycles, valid field combinations, bump groups present in `parse_regex`; overlapping
 class regexes produce a warning. A legacy v1 config (`protected_branch`, the `bump`

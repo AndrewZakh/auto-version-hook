@@ -1,13 +1,15 @@
 # Backlog
 
-## Open
-
-- [ ] **pyproject version vs env.yml.** Since dogfooding (2026-10-28) the flow version
-  lives in `env.yml` and is bumped by the hook itself, while `pyproject.toml` carries the
-  package version seen by pip. They are synced by hand at release time for now; revisit
-  (a guard test or a dynamic build version) if the drift starts to hurt.
-
 ## Done
+
+- [x] **pyproject version vs env.yml** — closed 2026-11-07 with the `version_files`
+  section (v1.1.0): optional mirrors of the master version, each `{path, regex,
+  replace_all}`. The hook splices the computed version's named groups into the first
+  match (a warning is logged for more; `replace_all: true` syncs all), missing files are
+  skipped, a no-match in an existing file fails the run, mirrors are absolute and covered
+  by `--check`/`auto_stage`. Renaming `version:` into a list was considered and rejected
+  as breaking; the name `greedy` lost to `replace_all`. This repo mirrors `pyproject.toml`
+  via `.version-hook.yml`.
 
 - [x] **branch_flow: target-class ambiguity** — closed 2026-10-24 with the "resolve by
   class name" decision (no new field): the target resolves in three steps — (1) a branch
