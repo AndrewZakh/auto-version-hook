@@ -1,0 +1,20 @@
+# The eternal jearless task registry (README: frozen facts only, no live state).
+# Status is never stored: available = here without a branch; in_progress = a branch
+# on origin; done = a merge commit in main.
+tasks:
+  avh:
+    - id: 1
+      summary: 'release surface: CHANGELOG.md + a tag-triggered GitHub Releases workflow so v1.x get real notes'
+      story_points: 3
+    - id: 2
+      summary: 'on PyPI: decide the name and ownership, publish the package, switch README install to pip install auto-version-hook'
+      story_points: 2
+    - id: 3
+      summary: 'storefront: 10-line quickstart atop the README, CONTRIBUTING.md, a version-topology note (env.yml master, mirrors, hook config)'
+      story_points: 3
+    - id: 4
+      summary: 'bootstrap UX: no-origin or missing-target first commit skips with a clear message instead of a network error'
+      story_points: 2
+    - id: 5
+      summary: 'platform CI: windows-latest in the matrix and triage what breaks (sh hook, paths)'
+      story_points: 3
