@@ -30,3 +30,6 @@ tasks:
     - id: 9
       summary: 'sprint artifacts on merge: GitHub Action runs jear sprint --write / board / burndown and commits the fresh gantt, kanban and burn-down charts to .jearless/ (embedded in README via markers)'
       story_points: 3
+    - id: 10
+      summary: 'logo: redraw the owl in proper vector curves, replace the sample PNG/SVG pair in assets/'
+      story_points: 2
