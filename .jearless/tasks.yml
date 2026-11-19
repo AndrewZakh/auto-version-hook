@@ -24,3 +24,9 @@ tasks:
     - id: 7
       summary: 'version domains + release manifest: design the contract first (docs/version-domains.md)'
       story_points: 5
+    - id: 8
+      summary: 'overversion guard: hook warns on protected-branch hand-edits (parent env.yml vs new) and release-tag gap-guard refuses version skips >1 increment (explicit override escape)'
+      story_points: 2
+    - id: 9
+      summary: 'sprint artifacts on merge: GitHub Action runs jear sprint --write / board / burndown and commits the fresh gantt, kanban and burn-down charts to .jearless/ (embedded in README via markers)'
+      story_points: 3
