@@ -22,7 +22,7 @@ Four principles the tool is built around — and where each one lives in the imp
 output of commit-message archaeology; it is the deterministic result of a declared
 process. A developer sees the next version before the commit exists (`--dry-run`, hook
 output), a manager reads the sprint plan (one feature branch = one minor step), a
-consumer reads the release badge and the tags. The rules themselves are printable:
+consumer reads the release badge, the tags and the changelog. The rules themselves are printable:
 `--graph`. Commit-message analyzers solve a different problem — they infer intent from
 history; here the declared process *is* the intent.
 
@@ -49,7 +49,7 @@ merges. Neither replaces the other; together they close the loop.
 | trunk-based default, GitFlow optional | default `branch_flow` / `staging` class |
 | majors are a human decision | direct commit on a protected branch |
 | local prevention + server-side watchdog | pre-commit hook + CI `--check` |
-| one version, many surfaces | `version_files` mirrors + tags + release badge |
+| one version, many surfaces | `version_files` mirrors + tags + GitHub Releases + release badge |
 
 ## How it works
 
