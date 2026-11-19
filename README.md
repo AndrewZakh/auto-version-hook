@@ -305,9 +305,27 @@ auto-version-hook --graph   # prints a Mermaid flowchart
 Any option can be overridden on the command line: `--version-file`, `--version-key`,
 `--parse-regex`, `--remote`, `--no-fetch` (offline: no ls-remote/fetch, existing
 remote-tracking refs only), `--no-stage`, `--on-error {fail,warn}`; plus utility flags:
-`--config`, `--repo`, `--branch` (branch name override), `--dry-run`, `-v`, `-q`.
+`--config`, `--repo`, `--branch` (branch name override), `--dry-run`, `--json`, `-v`, `-q`.
 Exit codes: `0` — OK; `1` — error, the commit is blocked (not with `on_error: warn`);
 `2` — argument/config problems.
+
+`--json` switches the result output to machine-readable JSON on stdout (human logs stay
+on stderr) — handy for CI gates and scripts. Pairs with any mode; exit codes unchanged:
+
+```json
+{
+  "action": "would-update",
+  "branch": "feature/login",
+  "branch_class": "feature",
+  "policy": "increment",
+  "target_branch": "main",
+  "base_version": "v1.2.0",
+  "version": "v1.3.0",
+  "mirrors": ["pyproject.toml"],
+  "dry_run": true,
+  "would_change": true
+}
+```
 
 ## Example
 

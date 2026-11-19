@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import subprocess
@@ -90,6 +91,64 @@ def test_no_overversion_warn_when_version_untouched(repo, git, caplog):
     with caplog.at_level(logging.WARNING, logger="auto_version_hook"):
         run_hook(AppConfig(), repo=repo)
     assert not any("changed by hand" in record.getMessage() for record in caplog.records)
+
+
+# --- --json (machine-readable output) ---
+
+
+def _json_run(repo: Path, *extra_args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [sys.executable, "-m", "auto_version_hook", "--json", *extra_args],
+        cwd=str(repo), capture_output=True, text=True, env=_module_env(),
+    )
+
+
+def test_json_dry_run_reports_would_update(repo, git):
+    git("checkout", "-b", "feature/login", cwd=repo)
+    stage_change(git, repo)
+    proc = _json_run(repo, "--dry-run", "--branch", "feature/login")
+    assert proc.returncode == 0
+    payload = json.loads(proc.stdout)
+    assert payload["action"] == "would-update"
+    assert payload["branch"] == "feature/login"
+    assert payload["branch_class"] == "feature"
+    assert payload["policy"] == "increment"
+    assert payload["target_branch"] == "master"
+    assert payload["base_version"] == "v1.2.3"
+    assert payload["version"] == "v1.3.3"
+    assert payload["dry_run"] is True and payload["would_change"] is True
+
+
+def test_json_update_reports_changed(repo, git):
+    git("checkout", "-b", "feature/login", cwd=repo)
+    stage_change(git, repo)
+    proc = _json_run(repo, "--branch", "feature/login")
+    assert proc.returncode == 0
+    payload = json.loads(proc.stdout)
+    assert payload["action"] == "update"
+    assert payload["changed"] is True
+    assert payload["version"] == "v1.3.3"
+    assert payload["mirrors"] == []
+
+
+def test_json_check_stale_version_exits_1(repo, git):
+    git("checkout", "-b", "feature/login", cwd=repo)
+    stage_change(git, repo)
+    proc = _json_run(repo, "--check", "--branch", "feature/login")
+    assert proc.returncode == 1
+    payload = json.loads(proc.stdout)
+    assert payload["action"] == "would-update"
+    assert payload["would_change"] is True
+
+
+def test_json_error_invalid_branch(repo, git):
+    git("checkout", "-b", "weird_branch", cwd=repo)
+    stage_change(git, repo)
+    proc = _json_run(repo, "--branch", "weird_branch")
+    assert proc.returncode == 1
+    payload = json.loads(proc.stdout)
+    assert payload["action"] == "error"
+    assert "invalid" in payload["message"]
 
 
 # --- GitFlow scenarios: an explicit staging-bearing flow (the v0.x default;

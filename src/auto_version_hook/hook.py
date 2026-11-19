@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -39,6 +39,8 @@ class HookResult:
     target_branch: Optional[str] = None
     base: Optional[RegexVersion] = None
     version: Optional[RegexVersion] = None
+    policy: Optional[str] = None
+    mirrors: List[str] = field(default_factory=list)
     reference: Optional[RegexVersion] = None  # the version mirrors are synced to
     changed: bool = False
     dry_run: bool = False
@@ -128,6 +130,8 @@ def run_hook(
             target_branch,
             base,
             local_version,
+            policy=cls.policy,
+            mirrors=mirrored,
             reference=reference,
             changed=False,
             dry_run=dry_run,
@@ -159,6 +163,8 @@ def run_hook(
             target_branch,
             base,
             new_version,
+            policy=cls.policy,
+            mirrors=mirrored,
             reference=reference,
             changed=False,
             dry_run=True,
@@ -181,7 +187,15 @@ def run_hook(
             gittools.stage(root, rel_path)
             log.debug("staged %s", rel_path)
     return HookResult(
-        branch, cls.name, target_branch, base, new_version, reference=reference, changed=True
+        branch,
+        cls.name,
+        target_branch,
+        base,
+        new_version,
+        policy=cls.policy,
+        mirrors=mirrored,
+        reference=reference,
+        changed=True,
     )
 
 

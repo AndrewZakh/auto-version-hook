@@ -41,6 +41,16 @@ def test_mirror_follows_the_bump(repo, git):
     assert "env.yml" in staged and "pyproject.toml" in staged
 
 
+def test_hook_result_carries_mirrors(repo, git):
+    make_pyproject(repo)
+    git("checkout", "-b", "feature/login", cwd=repo)
+    stage_change(git, repo)
+    result = run_hook(
+        cfg_with(VersionFileConfig(path="pyproject.toml", regex=PYPROJECT_REGEX)), repo=repo
+    )
+    assert result.mirrors == ["pyproject.toml"]
+
+
 def test_mirror_missing_file_is_skipped(repo):
     cfg = cfg_with(VersionFileConfig(path="Cargo.toml", regex=PYPROJECT_REGEX))
     result = run_hook(cfg, repo=repo)

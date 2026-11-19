@@ -8,6 +8,29 @@ The project was first published on GitHub on 2026-11-06 (English docs, MIT licen
 GitHub Actions CI, Python 3.11+); `v0.2.0` is the first tagged release on top of
 that publication.
 
+## [1.5.0] — 2026-11-19
+
+### Added
+- `--json`: the hook result as machine-readable JSON on stdout (action, branch,
+  class, policy, target, versions, mirrors) — for CI gates and integrations. Pairs
+  with `--check`/`--dry-run`; exit codes unchanged.
+
+## [1.4.0] — 2026-11-19
+
+### Added
+- The development task board and sprint plan (`.jearless/`) — dogfooding the
+  jearless tracker on the project's own releases.
+- `docs/version-domains.md`: exploration draft for version domains and release
+  manifests (deferred direction).
+- README philosophy section: transparency, semver by construction, branching-model
+  support, defense in depth.
+
+## [1.3.0] — 2026-11-19
+
+### Added
+- CHANGELOG.md (this file) + GitHub Releases published automatically on every
+  version tag.
+
 ## [1.2.0] — 2026-11-19
 
 ### Added
@@ -15,11 +38,6 @@ that publication.
   protected branch — a typo becomes visible instead of silently accepted.
 - Release gap-guard: the release workflow refuses to tag versions that skip more
   than one increment or go backwards; intentional jumps dispatch it with `force: true`.
-- README philosophy section (transparency, semver by construction, branching-model
-  support, defense in depth).
-- `docs/version-domains.md`: exploration draft for version domains and release
-  manifests (deferred direction).
-- The development task board (`.jearless/`, jearless kanban).
 
 ## [1.1.0] — 2026-11-17
 
