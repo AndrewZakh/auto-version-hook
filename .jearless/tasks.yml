@@ -33,3 +33,6 @@ tasks:
     - id: 10
       summary: 'logo: redraw the owl in proper vector curves, replace the sample PNG/SVG pair in assets/'
       story_points: 2
+    - id: 11
+      summary: 'avh+avh integration: jear changelog/report read the version and release state via AVH --json output instead of parsing env.yml or log lines'
+      story_points: 3
