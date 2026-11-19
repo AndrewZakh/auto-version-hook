@@ -14,6 +14,31 @@ Supports both trunk-based (feature → master) and GitFlow (feature → staging 
 hotfix → master bypassing staging): the branch lifecycle is described by a declarative
 `branch_flow` graph. Full specification: [docs/branch-flow-design.md](docs/branch-flow-design.md).
 
+## Quickstart
+
+Any repository, ten lines — install, describe the version, commit:
+
+```sh
+pip install git+https://github.com/AndrewZakh/auto-version-hook.git
+printf 'version: v0.1.0\n' > env.yml            # the master version file
+tee .git/hooks/pre-commit > /dev/null <<'HOOK'
+#!/bin/sh
+exec auto-version-hook "$@"
+HOOK
+chmod +x .git/hooks/pre-commit
+git checkout -b feature/my-change
+git commit -m "my change"                       # → env.yml bumps to v0.2.0 automatically
+```
+
+Every commit on `feature/*` bumps the minor; when the branch merges to `main`, the
+release workflow tags the version and publishes a GitHub Release. More install paths
+(pre-commit framework, offline mode) — in [Installation](#installation) below.
+
+**Version topology** — where the version lives and how it moves: `env.yml` is the
+master (bumped by the hook) → `pyproject.toml` mirrors it via `version_files` → on
+merge to `main` the release workflow tags it and publishes a GitHub Release. Nothing
+else stores a version.
+
 ## Philosophy
 
 Four principles the tool is built around — and where each one lives in the implementation.
@@ -422,7 +447,7 @@ pytest
 
 The tests create throwaway git repositories in a temporary directory and run the hook
 end to end (trunk-based and GitFlow scenarios, including feat-1/feat-2, catch-up and
-merge-skip).
+merge-skip). PRs and the house rules — [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
