@@ -1,0 +1,49 @@
+# Refresh the sprint artifacts (dashboard, kanban, gantt, burndown) on every merge
+# to main. The bot commit with the fresh charts is the sanctioned direct-to-main
+# write; paths-ignore keeps the workflow from re-triggering on its own commits.
+
+name: sprint-artifacts
+
+on:
+  push:
+    branches: [main, master]
+    paths-ignore:
+      - '.jearless/**'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sprint-artifacts
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # burndown walks the merge history
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install jearless
+        run: pip install --quiet git+https://github.com/AndrewZakh/jearless.git
+      - name: Render the artifacts
+        run: |
+          jear sprint --write
+          jear board > .jearless/board.mmd
+          PLAN=$(ls .jearless/plans/sprint_*.yml | sort -V | tail -1)
+          jear plan "$PLAN" --gantt > .jearless/gantt.mmd
+          jear burndown > .jearless/burndown.mmd
+      - name: Commit the artifacts
+        run: |
+          if git diff --quiet -- .jearless/; then
+            echo "artifacts unchanged — nothing to commit"
+            exit 0
+          fi
+          git config user.name "release-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add .jearless/
+          git commit -m "jearless: refresh sprint artifacts (dashboard, kanban, gantt, burndown)"
+          git push
