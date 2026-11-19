@@ -92,3 +92,10 @@ jobs:
           # points at the newest release
           git tag -f latest
           git push -f origin refs/tags/latest
+      - name: Create the GitHub Release
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$VERSION" --generate-notes --title "release $VERSION" \
+            --notes "See the [changelog](https://github.com/AndrewZakh/auto-version-hook/blob/main/CHANGELOG.md)."
