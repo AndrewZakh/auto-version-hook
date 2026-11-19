@@ -18,3 +18,9 @@ tasks:
     - id: 5
       summary: 'platform CI: windows-latest in the matrix and triage what breaks (sh hook, paths)'
       story_points: 3
+    - id: 6
+      summary: '--json output: machine-readable hook result (branch, class, target, current/calculated version, action) for CI and integrations'
+      story_points: 2
+    - id: 7
+      summary: 'version domains + release manifest: design the contract first (docs/version-domains.md)'
+      story_points: 5
