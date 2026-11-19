@@ -8,6 +8,13 @@ The project was first published on GitHub on 2026-11-06 (English docs, MIT licen
 GitHub Actions CI, Python 3.11+); `v0.2.0` is the first tagged release on top of
 that publication.
 
+## [1.7.0] — 2026-11-19
+
+### Added
+- Bootstrap skip: while the repository has no configured origin or no branches on
+  it yet, the hook skips cleanly with a clear message instead of failing the first
+  local commits with a network error.
+
 ## [1.5.0] — 2026-11-19
 
 ### Added

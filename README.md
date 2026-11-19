@@ -76,6 +76,10 @@ The default graph (works without any config) is **trunk-based**: `main` (master/
 (their version is force-synced with main). A GitFlow team adds a `staging` class — both
 flavors, side by side: [Two Git workflows out of the box](#two-git-workflows-out-of-the-box).
 
+Fresh repositories are covered too: while the repository has no configured origin or no
+branches on it yet, the hook **skips cleanly** (a bootstrap commit is not versioned) with
+a clear message — versioning starts once an origin with branches exists.
+
 ### Hotfixes and quiet catch-up
 
 The point of a hotfix is to get a fix to the release fast, bypassing pipeline bureaucracy:

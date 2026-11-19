@@ -93,6 +93,41 @@ def test_no_overversion_warn_when_version_untouched(repo, git, caplog):
     assert not any("changed by hand" in record.getMessage() for record in caplog.records)
 
 
+# --- bootstrap skip (no origin / empty origin) ---
+
+
+def test_bootstrap_skip_without_origin(repo, git, caplog):
+    git("remote", "remove", "origin", cwd=repo)
+    git("checkout", "-b", "feature/first", cwd=repo)
+    stage_change(git, repo)
+    with caplog.at_level(logging.INFO, logger="auto_version_hook"):
+        result = run_hook(AppConfig(), repo=repo)
+    assert result.skipped is True
+    assert result.changed is False
+    assert read_version(repo) == "v1.2.3"
+    assert any("bootstrap commit" in record.getMessage() for record in caplog.records)
+
+
+def test_bootstrap_skip_when_origin_has_no_branches(repo, git):
+    bare = repo.parent / "empty-origin.git"
+    git("init", "--bare", str(bare), cwd=repo.parent)
+    git("remote", "set-url", "origin", str(bare), cwd=repo)
+    git("checkout", "-b", "feature/first", cwd=repo)
+    stage_change(git, repo)
+    result = run_hook(AppConfig(), repo=repo)
+    assert result.skipped is True
+    assert result.changed is False
+    assert read_version(repo) == "v1.2.3"
+
+
+def test_json_bootstrap_skip(repo, git):
+    git("remote", "remove", "origin", cwd=repo)
+    proc = _json_run(repo, "--branch", "feature/first")
+    assert proc.returncode == 0
+    payload = json.loads(proc.stdout)
+    assert payload["action"] == "skipped"
+
+
 # --- --json (machine-readable output) ---
 
 
