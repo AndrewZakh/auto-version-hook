@@ -8,6 +8,7 @@ errors (bad arguments, not a git repository, broken config).
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import sys
 from pathlib import Path
@@ -48,6 +49,12 @@ def build_parser() -> argparse.ArgumentParser:
         "exit 1 if the hook would update the file or the branch is unknown "
         "(hooks.on_error=warn is ignored)",
     )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="print the result as JSON to stdout (human logs stay on stderr); "
+        "pairs with --check/--dry-run, exit codes unchanged",
+    )
     parser.add_argument("-v", "--verbose", action="count", default=0, help="debug output")
     parser.add_argument("-q", "--quiet", action="store_true", help="suppress informational output")
     return parser
@@ -71,23 +78,59 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         root = gittools.repo_root(Path(args.repo))
         cfg = load_config(args.config, repo_root=root)
     except (ConfigError, GitError) as exc:
+        if args.json:
+            print(json.dumps({"action": "error", "message": str(exc)}, ensure_ascii=False))
+            return 2
         print(f"auto-version-hook: {exc}", file=sys.stderr)
         return 2
     _apply_overrides(cfg, args)
 
     try:
-        if args.check:
-            return _check_result(
-                run_hook(cfg, repo=root, branch=args.branch, dry_run=True), cfg
-            )
-        run_hook(cfg, repo=root, branch=args.branch, dry_run=args.dry_run)
+        result = run_hook(cfg, repo=root, branch=args.branch, dry_run=args.dry_run or args.check)
     except (HookError, GitError, VersionError, VersionFileError) as exc:
+        if args.json:
+            print(json.dumps({"action": "error", "message": str(exc)}, ensure_ascii=False))
+            return 1
         if cfg.hooks.on_error == "warn" and not args.check:
             log.warning("auto-version-hook: %s (on_error=warn, continuing)", exc)
             return 0
         print(f"auto-version-hook: {exc}", file=sys.stderr)
         return 1
+
+    if args.json:
+        print(json.dumps(_json_payload(result), ensure_ascii=False, indent=2))
+        if args.check:
+            return 1 if (result.skipped or result.would_change) else 0
+        return 0
+
+    if args.check:
+        return _check_result(result, cfg)
     return 0
+
+
+def _json_payload(result) -> dict:
+    """The stable machine-readable contract for --json (see README)."""
+    if result.skipped:
+        action = "skipped"
+    elif result.changed:
+        action = "update"
+    elif result.would_change:
+        action = "would-update"
+    else:
+        action = "none"
+    return {
+        "action": action,
+        "branch": result.branch,
+        "branch_class": result.branch_class,
+        "policy": result.policy,
+        "target_branch": result.target_branch,
+        "base_version": str(result.base) if result.base is not None else None,
+        "version": str(result.version) if result.version is not None else None,
+        "mirrors": list(result.mirrors),
+        "changed": bool(result.changed),
+        "would_change": bool(result.would_change),
+        "dry_run": bool(result.dry_run),
+    }
 
 
 def _check_result(result, cfg: AppConfig) -> int:
