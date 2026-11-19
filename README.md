@@ -14,6 +14,43 @@ Supports both trunk-based (feature → master) and GitFlow (feature → staging 
 hotfix → master bypassing staging): the branch lifecycle is described by a declarative
 `branch_flow` graph. Full specification: [docs/branch-flow-design.md](docs/branch-flow-design.md).
 
+## Philosophy
+
+Four principles the tool is built around — and where each one lives in the implementation.
+
+**1. The versioning scheme is transparent to everyone.** A version here is never the
+output of commit-message archaeology; it is the deterministic result of a declared
+process. A developer sees the next version before the commit exists (`--dry-run`, hook
+output), a manager reads the sprint plan (one feature branch = one minor step), a
+consumer reads the release badge and the tags. The rules themselves are printable:
+`--graph`. Commit-message analyzers solve a different problem — they infer intent from
+history; here the declared process *is* the intent.
+
+**2. Semver-compliant by construction.** Every bump produces a valid
+`major.minor.patch` triple: increments are regex-driven, the base never regresses, and
+decorations survive verbatim (`v1.2.3-rc1` bumped by `patch` lands as `v1.2.4-rc1`, not
+a bare `v1.2.4`). Pre-release increments work the same way — `bump: mark` walks
+`rc1 → rc2`. What AVH deliberately does not do: interpret commit messages to *decide*
+the semantics — the increment kind is chosen by branch policy, declared up front.
+
+**3. Speaks both major branching models.** The shipped default is trunk-based — the
+dominant flow on GitHub. Classic GitFlow is one `staging` class away; anything custom
+is the same declarative graph. Nothing about the branching model is hard-coded.
+
+**4. Defense in depth: hook + CI.** The pre-commit hook is cheap local prevention —
+it fixes the state before the commit exists. `--check` in CI is an independent
+server-side watchdog: it catches `--no-verify`, hook-less clones, and server-side
+merges. Neither replaces the other; together they close the loop.
+
+| Guarantee | Where it lives |
+|---|---|
+| semver triple, no downgrades, idempotent | `version.parse_regex` + `increment` policy |
+| pre-release suffixes preserved | non-numeric groups (`mark`) in `parse_regex` |
+| trunk-based default, GitFlow optional | default `branch_flow` / `staging` class |
+| majors are a human decision | direct commit on a protected branch |
+| local prevention + server-side watchdog | pre-commit hook + CI `--check` |
+| one version, many surfaces | `version_files` mirrors + tags + release badge |
+
 ## How it works
 
 1. Merge commits are skipped (`hooks.skip_merges`, true by default);
