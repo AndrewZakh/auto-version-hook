@@ -1,0 +1,35 @@
+# sprint 1 — make the tool adoptable: release surface, introspection, platform reach.
+# The file's git birth is the sprint start; the order below is the sprint priority.
+plan:
+  goal: "adoptability: release surface, introspection, platform reach"
+
+  tasks:
+    - task: avh/8
+      planned: {start: 2026-11-19, end: 2026-11-19}
+
+    - task: avh/1
+      planned: {start: 2026-11-19, end: 2026-11-20}
+
+    - task: avh/6
+      planned: {start: 2026-11-20, end: 2026-11-20}
+
+    - task: avh/4
+      planned: {start: 2026-11-20, end: 2026-11-21}
+
+    - task: avh/9
+      planned: {start: 2026-11-21, end: 2026-11-21}
+
+    - task: avh/3
+      planned: {start: 2026-11-21, end: 2026-11-22}
+
+    - task: avh/5
+      planned: {start: 2026-11-22, end: 2026-11-23}
+
+    - task: avh/2
+      planned: {start: 2026-11-23, end: 2026-11-23}
+
+    - task: avh/10
+      planned: {start: 2026-11-23, end: 2026-11-24}
+
+    - task: avh/7
+      planned: {start: 2026-11-24, end: 2026-11-24}
