@@ -9,6 +9,12 @@ name: release-tag
 on:
   push:
     branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Skip the gap guard (tag a version that skips increments)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write   # push the tag
@@ -31,14 +37,52 @@ jobs:
       - name: Read version from env.yml
         id: version
         run: echo "version=$(python -c 'import yaml; print(yaml.safe_load(open("env.yml"))["version"])')" >> "$GITHUB_OUTPUT"
-      - name: Tag the release
+      - name: Gap guard
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          FORCE: ${{ inputs.force }}
         run: |
           if [ -n "$(git ls-remote --tags origin "refs/tags/$VERSION")" ]; then
             echo "tag $VERSION already exists — nothing to do"
             exit 0
           fi
+          if [ "$FORCE" = "true" ]; then
+            echo "force run: skipping the gap guard"
+            exit 0
+          fi
+          PREV=$(git ls-remote --tags origin 'refs/tags/v*' | sed 's/.*refs\/tags\///' | grep -v '\^{}' | sort -V | tail -1)
+          if [ -z "$PREV" ]; then
+            echo "first release: no previous tag to compare against"
+            exit 0
+          fi
+          python - "$PREV" "$VERSION" <<'PY'
+          import sys
+
+          def semver(tag):
+              return tuple(int(p) for p in tag.lstrip("v").split("."))
+
+          prev, new = semver(sys.argv[1]), semver(sys.argv[2])
+          if len(prev) != 3 or len(new) != 3:
+              print(f"gap guard: cannot compare {new} with {prev} (expected v<major>.<minor>.<patch>)")
+              sys.exit(1)
+          allowed = {
+              (prev[0] + 1, 0, 0),
+              (prev[0], prev[1] + 1, 0),
+              (prev[0], prev[1], prev[2] + 1),
+          }
+          if new not in allowed:
+              allowed_str = ", ".join("v{}.{}.{}".format(*a) for a in sorted(allowed))
+              print(
+                  f"gap guard: v{new[0]}.{new[1]}.{new[2]} skips versions after "
+                  f"v{prev[0]}.{prev[1]}.{prev[2]}; allowed next: {allowed_str}. "
+                  f"Intentional jump? Run this workflow manually with force=true."
+              )
+              sys.exit(1)
+          PY
+      - name: Tag the release
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
           git config user.name "release-bot"
           git config user.email "actions@users.noreply.github.com"
           git tag -a "$VERSION" -m "release $VERSION"

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import subprocess
 import sys
@@ -68,6 +69,27 @@ def test_main_is_untouched(repo, git):
     assert result.branch_class == "main"
     assert read_version(repo) == "v3.0.0"
     assert "env.yml" not in staged_files(git, repo)
+
+
+def test_overversion_warn_on_protected_hand_edit(repo, git, caplog):
+    # a hand-set version on the protected branch is accepted, but loudly
+    (repo / "env.yml").write_text("version: v1.5.0\n", encoding="utf-8")
+    stage_change(git, repo)
+    with caplog.at_level(logging.WARNING, logger="auto_version_hook"):
+        result = run_hook(AppConfig(), repo=repo)
+    assert result.changed is False
+    assert read_version(repo) == "v1.5.0"
+    assert any(
+        "changed by hand" in record.getMessage() and "v1.2.3 -> v1.5.0" in record.getMessage()
+        for record in caplog.records
+    )
+
+
+def test_no_overversion_warn_when_version_untouched(repo, git, caplog):
+    stage_change(git, repo)  # plain commit on master, version untouched
+    with caplog.at_level(logging.WARNING, logger="auto_version_hook"):
+        run_hook(AppConfig(), repo=repo)
+    assert not any("changed by hand" in record.getMessage() for record in caplog.records)
 
 
 # --- GitFlow scenarios: an explicit staging-bearing flow (the v0.x default;
