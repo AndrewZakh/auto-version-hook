@@ -89,6 +89,31 @@ def run_hook(
             local_version = None  # broken local value: policies overwrite it below
 
     new_version = _apply_policy(cls, branch, base, local_version)
+
+    # Overversion guard (warn side): on a protected branch the hook never
+    # writes, so any version change comes from a human hand — surface it
+    # (typos included) instead of accepting it silently.
+    if cls.protected and new_version is None:
+        parent_text = gittools.read_file_from_ref(root, "HEAD", cfg.version.file)
+        if parent_text:
+            try:
+                parent_version = _version_from_text(parent_text, spec, cfg)
+            except (VersionError, VersionFileError):
+                parent_version = None
+            if (
+                parent_version is not None
+                and local_version is not None
+                and parent_version != local_version
+            ):
+                log.warning(
+                    "auto-version-hook: %s: version changed by hand on the protected "
+                    "branch: %s -> %s (a human decision — the release workflow will "
+                    "follow with a tag)",
+                    branch,
+                    parent_version,
+                    local_version,
+                )
+
     # Mirrors follow the master version: the freshly computed one when a bump
     # fires, otherwise the master's current value (self-healing for drift).
     reference = new_version if new_version is not None else local_version
