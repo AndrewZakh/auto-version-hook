@@ -32,6 +32,11 @@ class HookError(RuntimeError):
     """Fatal hook problem: the version cannot be computed or written."""
 
 
+class BootstrapSkip(RuntimeError):
+    """The repository has no origin (or no branches on it) yet — a bootstrap
+    commit that must not block: the hook starts versioning after the first push."""
+
+
 @dataclass
 class HookResult:
     branch: Optional[str] = None
@@ -77,11 +82,6 @@ def run_hook(
         raise HookError(f"branch name {branch!r} is invalid: it matches no branch_flow class ({names})")
     log.debug("branch %r -> class %r (policy %s)", branch, cls.name, cls.policy)
 
-    target_branch: Optional[str] = None
-    base: Optional[RegexVersion] = None
-    if cls.target:
-        target_branch, base = _resolve_base(root, cfg, spec, cls)
-
     vfile = root / cfg.version.file
     local_version: Optional[RegexVersion] = None
     if vfile.exists():
@@ -89,6 +89,53 @@ def run_hook(
             local_version = _version_from_text(vfile.read_text(encoding="utf-8"), spec, cfg)
         except (VersionError, VersionFileError):
             local_version = None  # broken local value: policies overwrite it below
+
+    # Bootstrap: without a configured origin there is nothing to resolve against —
+    # skip cleanly instead of failing the first local commits of a fresh repository.
+    if cls.target is not None and not gittools.has_remote(root, cfg.git.remote):
+        log.info(
+            "auto-version-hook: %s: no %r remote configured yet — bootstrap commit, "
+            "nothing to version (the hook starts versioning once an origin exists)",
+            branch,
+            cfg.git.remote,
+        )
+        return HookResult(
+            branch,
+            cls.name,
+            None,
+            None,
+            local_version,
+            policy=cls.policy,
+            changed=False,
+            dry_run=dry_run,
+            skipped=True,
+        )
+
+    target_branch: Optional[str] = None
+    base: Optional[RegexVersion] = None
+    if cls.target is not None:
+        try:
+            target_branch, base = _resolve_base(root, cfg, spec, cls)
+        except BootstrapSkip:
+            log.info(
+                "auto-version-hook: %s: %r has no branches yet — bootstrap commit, "
+                "nothing to version (versioning starts after the first push)",
+                branch,
+                cfg.git.remote,
+            )
+            return HookResult(
+                branch,
+                cls.name,
+                None,
+                None,
+                local_version,
+                policy=cls.policy,
+                changed=False,
+                dry_run=dry_run,
+                skipped=True,
+            )
+
+    vfile = root / cfg.version.file
 
     new_version = _apply_policy(cls, branch, base, local_version)
 
@@ -264,6 +311,11 @@ def _resolve_base(
         heads = gittools.ls_remote_heads(root, cfg.git.remote)
     else:
         heads = gittools.remote_heads_local(root, cfg.git.remote)
+    if not heads:
+        raise BootstrapSkip(
+            f"{cfg.git.remote!r} has no branches yet — bootstrap commit: the hook "
+            f"starts versioning after the first push"
+        )
 
     target_class, target_branch, ambiguous = resolve_target(cls, cfg.branch_flow, heads)
     if ambiguous:

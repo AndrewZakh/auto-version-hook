@@ -33,6 +33,12 @@ def repo_root(cwd: Path) -> Path:
     return Path(git(["rev-parse", "--show-toplevel"], cwd).strip())
 
 
+def has_remote(cwd: Path, remote: str) -> bool:
+    """Whether the remote name exists in this repository."""
+    proc = _git(["remote", "get-url", remote], cwd)
+    return proc.returncode == 0
+
+
 def current_branch(cwd: Path) -> Optional[str]:
     """The checked-out branch name, or None for a detached HEAD."""
     proc = _git(["symbolic-ref", "--quiet", "--short", "HEAD"], cwd)
